@@ -86,8 +86,8 @@ start_time,end_time,scene
 | `--video` | `input.mp4` | 输入视频路径 |
 | `--templates` | `./templates` | 模板目录 |
 | `--output` | `output_scene_result.csv` | 输出 CSV 路径 |
-| `--threshold` | `0.6` | 模板匹配阈值（0-1，越高越严格） |
-| `--interval` | `60` | 采样间隔帧数（60fps 下≈1秒/帧） |
+| `--threshold` | `0.7` | 模板匹配阈值（0-1，越高越严格） |
+| `--interval` | `30` | 采样间隔帧数（30fps 下≈1秒/帧） |
 | `--smooth` | `3` | 平滑窗口大小 |
 | `--start` | `0` | 开始时间（MM:SS 或 HH:MM:SS） |
 | `--end` | `视频结束` | 结束时间（MM:SS 或 HH:MM:SS） |

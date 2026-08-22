@@ -29,10 +29,13 @@ Requirements:
     pip install opencv-python
 """
 
+import os
+# Enable NVIDIA hardware decoding if available
+os.environ.setdefault('OPENCV_FFMPEG_CAPTURE_OPTIONS', 'hwaccel;cuvid')
+
 import cv2
 import csv
 import json
-import os
 import argparse
 import warnings
 
@@ -285,8 +288,8 @@ def main():
     for scene, tags in scenes_loaded.items():
         print(f"       {scene}: {', '.join(tags)}")
 
-    # Open video
-    cap = cv2.VideoCapture(args.video)
+    # Open video with ffmpeg backend for hardware acceleration
+    cap = cv2.VideoCapture(args.video, cv2.CAP_FFMPEG)
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video: {args.video}")
     fps = cap.get(cv2.CAP_PROP_FPS)

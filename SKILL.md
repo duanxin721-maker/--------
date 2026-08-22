@@ -76,7 +76,7 @@ start_time,end_time,scene
 
 ## How It Works
 
-1. **Frame Sampling** — reads video, samples 1 frame every N frames (default N=60 @60fps = 1/sec)
+1. **Frame Sampling** — reads video, samples 1 frame every N frames (default N=30 @30fps = 1/sec)
 2. **Template Matching** — runs OpenCV `matchTemplate` against each UI screenshot
 3. **Rule Classification** — `battle` templates have priority over `story` templates
 4. **Temporal Smoothing** — ignores single-frame flips; confirms scene change after 3 consecutive frames
@@ -90,8 +90,8 @@ start_time,end_time,scene
 | `--video` | `input.mp4` | Input video path |
 | `--templates` | `./templates` | Template directory |
 | `--output` | `output_scene_result.csv` | Output CSV path |
-| `--threshold` | `0.6` | Match threshold (0-1, higher = stricter) |
-| `--interval` | `60` | Sample 1 frame per N frames |
+| `--threshold` | `0.7` | Match threshold (0-1, higher = stricter) |
+| `--interval` | `30` | Sample 1 frame per N frames |
 | `--smooth` | `3` | Frames needed to confirm scene change |
 | `--start` | `0` | Start time (MM:SS or HH:MM:SS) |
 | `--end` | `end` | End time (MM:SS or HH:MM:SS) |

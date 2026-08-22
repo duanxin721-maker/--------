@@ -1,110 +1,84 @@
-# Assignment Report Key Points & Interview Q&A
+# 报告要点 & 答辩问答
 
-Reference for preparing the written report and oral defense. Load this when writing
-the report document or rehearsing interview answers.
+写作报告或准备面试答辩时可参考本文件。
 
 ---
 
-## 1. Approach Rationale
+## 1. 方案思路
 
-Do NOT train a deep-learning image classifier. The target is a **fixed game** whose
-UI style and layout remain constant, so UI elements can serve as reliable detection
-features. The pipeline is:
+**不要**训练深度学习图像分类器。目标是**固定游戏**，其 UI 样式和布局恒定，UI 元素本身就能作为可靠的检测特征。整体流程：
 
-1. Predefine scene categories (story / battle) and the UI features that trigger each.
-2. Detect UI elements in sampled frames via OpenCV template matching.
-3. Classify each frame by preset rule priority (battle > story).
-4. Apply temporal smoothing to eliminate single-frame jitter.
-5. Output timestamped scene segments.
+1. 预定义场景类别（story / battle）以及触发每类的 UI 特征。
+2. 用 OpenCV 模板匹配在采样帧中检测这些 UI 元素。
+3. 按预设优先级规则对每一帧分类（battle > story）。
+4. 用时序平滑消除单帧抖动。
+5. 输出带时间戳的场景分段。
 
-**Core idea:** first define feature rules, then detect features, then classify by
-rules — fully explainable, no model training required.
+**核心思想**：先定义特征规则 → 再检测特征 → 再按规则分类，全程可解释、无需训练模型。
 
-## 2. Feature & Rule Design
+## 2. 特征与规则设计
 
-### Story features
-- `dialog.png` — dialogue popup window (cutscene / conversation)
-- Character CG overlay with no combat controls (no HP bars, no skill bar)
+### 剧情（story）特征
+- `dialog.png` —— 对话弹窗（过场 / 对话）
+- 角色 CG 画面且无战斗控件（无血条、无技能栏）
 
-### Battle features
-- `player_hp.png` — player health bar
-- `enemy_hp.png` — enemy health bar
-- `skill_bar.png` — skill / action bar
-- Combat effect UI panels
+### 战斗（battle）特征
+- `player_hp.png` —— 玩家血条
+- `enemy_hp.png` —— 敌人 / Boss 血条
+- `skill_bar.png` —— 技能 / 动作栏
 
-### Rule priority (critical)
-1. Any battle UI detected -> `battle` (battle priority > story, even if a dialogue
-   box is also present — combat can contain in-fight dialogue).
-2. No battle feature but dialog detected -> `story`.
-3. Nothing detected -> `unknown` (do not force-classify).
+### 规则优先级（关键）
+1. 检测到任意战斗 UI → `battle`（即使同时出现对话框，战斗优先级也高于剧情——战斗中可能出现对话）。
+2. 无战斗特征但检测到对话框 → `story`。
+3. 什么都没检测到 → `unknown`（不强行分类）。
 
-### Edge cases
-- Simultaneous dialog + battle UI -> battle wins.
-- A frame with zero feature matches -> `unknown`, not forced into a category.
-- Temporal smoothing: N consecutive same-class frames (default N=3) required to
-  confirm a scene switch; isolated anomalies inherit the last valid scene.
+### 边界情况
+- 对话框 + 战斗 UI 同时出现 → 判为 battle。
+- 某帧零特征命中 → `unknown`，不强行归类。
+- 时序平滑：需连续 N 帧同类别才确认切换（默认 N=3）；孤立异常帧继承上一个有效场景。
 
-## 3. Technical Implementation
+## 3. 技术实现
 
-### UI detection
-OpenCV `cv2.matchTemplate` with `TM_CCOEFF_NORMED` (normalized correlation
-coefficient). A template is "hit" when max correlation >= threshold (default 0.7).
-Frames are converted to grayscale before matching for robustness and speed.
+### UI 检测
+OpenCV `cv2.matchTemplate` + `TM_CCOEFF_NORMED`（归一化相关系数）。当最大相关系数 ≥ 阈值（默认 0.7）判定模板"命中"。匹配前将帧转为灰度，兼顾鲁棒性和速度。
 
-### Frame sampling
-Process every N-th frame (default 30, i.e. ~1 frame/sec at 30 fps). Reduces compute
-without losing scene-switch signal. Each sampled frame carries a video timestamp
-(`frame_index / fps`).
+### 帧采样
+每 N 帧处理一次（默认 30，即 30fps 下约 1 帧/秒）。降低计算量而不丢失场景切换信号。每个采样帧携带时间戳（`帧号 / fps`）。
 
-### Temporal smoothing
-Sliding window (default size 3). A scene change is confirmed only when all frames
-in the window agree. Consecutive same-class frames are merged into segments with
-start/end timestamps for the final report.
+### 时序平滑
+滑动窗口（默认大小 3）。只有窗口内所有帧一致才确认场景切换；连续同类别帧合并成带起止时间戳的分段。
 
-## 4. Limitations & Optimization Directions (bonus)
+## 4. 局限性与优化方向（加分项）
 
-### Limitations
-- Template matching is sensitive to UI scaling and position drift; if the game UI
-  changes layout or resolution, templates must be re-cropped.
-- Strict threshold can miss partial / occluded UI; loose threshold can false-positive.
+### 局限性
+- 模板匹配对 UI 缩放和位置漂移敏感；游戏 UI 换布局或分辨率后需要重新截图。
+- 阈值过严会漏检（部分遮挡 / 半透明），过松会误检。
 
-### Optimization directions
-1. Expand the UI template library (more features -> more robust classification).
-2. Replace template matching with a YOLO object detector trained on UI components for
-   better robustness to scaling, partial occlusion, and layout variation.
-3. Add OCR to read dialogue-box text as a secondary signal for story-scene validation.
-4. Multi-scale template matching (`matchTemplate` at several scales) to handle
-   resolution differences.
+### 优化方向
+1. 扩充 UI 模板库（更多特征 → 分类更鲁棒）。
+2. 用 ROI 限制搜索区域，缩小 `matchTemplate` 范围、降低误匹配。
+3. 用训练好的 YOLO 检测器替代模板匹配，提升对缩放、遮挡、布局变化的鲁棒性。
+4. 引入 OCR 读取对话文本，作为剧情场景的二次验证信号。
+5. 多尺度模板匹配，适配分辨率差异。
 
-## 5. High-Frequency Interview Q&A
+## 5. 高频答辩问答
 
-**Q: Why template matching + rules instead of training an AI image classifier?**
+**Q：为什么用模板匹配 + 规则，而不是训练一个 AI 图像分类器？**
 
-Because the target is a **fixed game** with constant UI appearance. The rule-based
-approach is fully explainable — every classification can be traced to which UI
-template was matched. It needs no large labeled dataset and no model training.
-Iteration only requires updating templates or rules, no retraining. Inference is
-fast. The trade-off: if the game UI changes, templates need updating.
+因为目标是**固定游戏**，UI 外观恒定。规则方案完全可解释——每一次分类都能追溯到命中了哪个 UI 模板；不需要大量标注数据、不需要训练；迭代只需改模板或规则；推理快。代价是：游戏 UI 一旦变化，模板就要更新。
 
-**Q: What if a frame simultaneously detects a dialogue box and a health bar?**
+**Q：如果一帧同时检测到对话框和血条怎么办？**
 
-By business rule, battle priority is higher than story, so the frame is classified
-as `battle`. This handles the case of in-combat dialogue correctly.
+按业务规则，战斗优先级高于剧情，所以判为 `battle`，这正好覆盖了"战斗中对话"的情况。
 
-**Q: Why temporal smoothing?**
+**Q：为什么要时序平滑？**
 
-A single video frame can be momentarily misclassified due to visual effects,
-occlusion, or motion blur. Requiring N consecutive frames to agree before switching
-scenes removes jitter and produces coherent, stable scene segments.
+单帧可能因特效、遮挡、运动模糊被瞬时误判。要求连续 N 帧一致才切换，能消除抖动，输出连贯稳定的场景分段。
 
-**Q: How is the similarity threshold chosen?**
+**Q：相似度阈值怎么选？**
 
-0.7 is a balanced starting point for `TM_CCOEFF_NORMED` (range -1 to 1, higher is
-more similar). Too high -> misses partial matches; too low -> false positives. In
-practice, tune on a short clip of the target game and inspect hit scores.
+0.7 是 `TM_CCOEFF_NORMED`（取值范围 -1~1，越大越相似）的一个平衡起点。太高会漏掉部分匹配，太低会误检。实践中建议在目标游戏的一段短片段上调参，观察命中分数。
 
-**Q: What happens if the game UI changes resolution or layout?**
+**Q：如果游戏 UI 换了分辨率或布局怎么办？**
 
-Fixed-game assumption breaks. Mitigations: crop templates at the same resolution as
-the video; for variable cases, add multi-scale matching or switch to a trained YOLO
-UI detector.
+"固定游戏"假设失效。缓解手段：模板用与视频相同的分辨率截取；对可变情况加多尺度匹配，或改用训练好的 YOLO UI 检测器。
